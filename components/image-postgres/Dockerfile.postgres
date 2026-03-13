@@ -10,6 +10,7 @@ ARG POSTGRES_VERSION=18
 
 # Trim any patch version from the provided POSTGRES_VERSION
 ENV POSTGRES_MAJOR_VERSION="${POSTGRES_VERSION%%.*}"
+ENV GOSU_VERSION 1.19
 
 RUN <<-SHELL
 set -e
@@ -62,6 +63,8 @@ microdnf install -y --nodocs --setopt install_weak_deps=0 \
 microdnf install -y --nodocs --setopt install_weak_deps=0 \
     'pgaudit_analyze' \
     'bind-utils' \
+    'findutils' \
+    'wget' \
     'bzip2' \
     'hostname' \
     'iproute' \
@@ -102,6 +105,33 @@ python3 -m pip install --no-cache-dir \
 
 SHELL
     
+RUN set -eux; \
+	\
+	rpmArch="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
+	case "$rpmArch" in \
+		aarch64) dpkgArch='arm64' ;; \
+		armv[67]*) dpkgArch='armhf' ;; \
+		i[3456]86) dpkgArch='i386' ;; \
+		ppc64le) dpkgArch='ppc64el' ;; \
+		riscv64 | s390x | loongarch64) dpkgArch="$rpmArch" ;; \
+		x86_64) dpkgArch='amd64' ;; \
+		*) echo >&2 "error: unknown/unsupported architecture '$rpmArch'"; exit 1 ;; \
+	esac; \
+	wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch"; \
+	wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch.asc"; \
+	\
+# verify the signature
+	export GNUPGHOME="$(mktemp -d)"; \
+	gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4; \
+	gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu; \
+	gpgconf --kill all; \
+	rm -rf "$GNUPGHOME" /usr/local/bin/gosu.asc; \
+	\
+	chmod +x /usr/local/bin/gosu; \
+# verify that the binary works
+	gosu --version; \
+	gosu nobody true
+
 ENV LANG='en_US.utf-8' LC_ALL='en_US.utf-8' PAGER='less'
 ENV PATH="/usr/pgsql-${POSTGRES_MAJOR_VERSION}/bin:/usr/pgaudit_analyze/bin:${PATH}"
 
