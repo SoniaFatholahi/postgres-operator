@@ -147,6 +147,23 @@ RUN echo "huge_pages = off" >> "/usr/pgsql-${POSTGRES_MAJOR_VERSION}/share/postg
 # init-db
 RUN mkdir -p /docker-entrypoint-initdb.d
 
+# pgbackrest permissions
+RUN mkdir -p \
+    /var/lib/pgbackrest \
+    /etc/pgbackrest \
+    /tmp/pgbackrest \
+    /var/log/pgbackrest \
+    /var/spool/pgbackrest \
+    && chown -R postgres:postgres \
+        /var/lib/pgbackrest \
+        /etc/pgbackrest \
+        /tmp/pgbackrest \
+        /var/log/pgbackrest \
+        /var/spool/pgbackrest \
+    && chmod 750 /var/lib/pgbackrest \
+    && chmod 750 /var/log/pgbackrest \
+    && chmod 700 /var/spool/pgbackrest
+
 COPY bin/pgbackrest-info.sh /opt/crunchy/bin/postgres/pgbackrest_info.sh
 
 USER 26
