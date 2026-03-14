@@ -144,6 +144,9 @@ RUN rm -f /etc/pgbackrest.conf
 # updating your postgresql.conf file or through a PostgresCluster Spec.
 RUN echo "huge_pages = off" >> "/usr/pgsql-${POSTGRES_MAJOR_VERSION}/share/postgresql.conf.sample"
 
+# init-db
+RUN mkdir -p /docker-entrypoint-initdb.d
+
 COPY bin/pgbackrest-info.sh /opt/crunchy/bin/postgres/pgbackrest_info.sh
 
 USER 26
